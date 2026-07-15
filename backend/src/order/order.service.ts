@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { ListResponseDto } from '../films/dto/films.dto';
 import { Schedule } from '../films/schemas/film.schema';
 import { FilmsRepository } from '../repository/films.repository';
-import { OrderedTicketDto, OrderPayload, TicketDto } from './dto/order.dto';
+import { CreateOrderDto, OrderedTicketDto, TicketDto } from './dto/order.dto';
 
 interface BookingGroup {
   film: string;
@@ -19,15 +19,9 @@ export class OrderService {
   constructor(private readonly filmsRepository: FilmsRepository) {}
 
   async createOrder(
-    payload: OrderPayload,
+    payload: CreateOrderDto,
   ): Promise<ListResponseDto<OrderedTicketDto>> {
-    const tickets = Array.isArray(payload) ? payload : payload?.tickets;
-
-    if (!Array.isArray(tickets) || tickets.length === 0) {
-      throw new BadRequestException('Добавьте хотя бы один билет');
-    }
-
-    const groups = await this.prepareBookingGroups(tickets);
+    const groups = await this.prepareBookingGroups(payload.tickets);
 
     for (const group of groups.values()) {
       const reserved = await this.filmsRepository.reserveSeats(

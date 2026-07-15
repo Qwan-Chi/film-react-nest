@@ -65,28 +65,36 @@ describe('OrderService', () => {
     });
 
     await expect(
-      service.createOrder([
-        {
-          film: 'film-1',
-          session: 'session-1',
-          row: 2,
-          seat: 3,
-        },
-      ]),
+      service.createOrder({
+        email: 'user@example.com',
+        phone: '+79999999999',
+        tickets: [
+          {
+            film: 'film-1',
+            session: 'session-1',
+            row: 2,
+            seat: 3,
+          },
+        ],
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.reserveSeats).not.toHaveBeenCalled();
   });
 
   it('rejects a place outside the hall', async () => {
     await expect(
-      service.createOrder([
-        {
-          film: 'film-1',
-          session: 'session-1',
-          row: 6,
-          seat: 1,
-        },
-      ]),
+      service.createOrder({
+        email: 'user@example.com',
+        phone: '+79999999999',
+        tickets: [
+          {
+            film: 'film-1',
+            session: 'session-1',
+            row: 6,
+            seat: 1,
+          },
+        ],
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
