@@ -23,6 +23,16 @@ describe('CreateOrderDto', () => {
     await expect(validate(order)).resolves.toHaveLength(0);
   });
 
+  it('accepts a formatted Russian phone number', async () => {
+    const order = plainToInstance(CreateOrderDto, {
+      email: 'user@example.com',
+      phone: '+7 (999) 999-99-99',
+      tickets: [ticket],
+    });
+
+    await expect(validate(order)).resolves.toHaveLength(0);
+  });
+
   it('rejects invalid contacts and an empty ticket list', async () => {
     const order = plainToInstance(CreateOrderDto, {
       email: 'invalid-email',

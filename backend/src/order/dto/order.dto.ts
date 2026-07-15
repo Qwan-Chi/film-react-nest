@@ -51,9 +51,8 @@ export class CreateOrderDto {
   @IsEmail()
   email: string;
 
-  @Matches(/^\+7\d{10}$/, {
-    message:
-      'phone must be a valid Russian phone number in +7XXXXXXXXXX format',
+  @Matches(/^\+7(?:\d{10}| \(\d{3}\) \d{3}-\d{2}-\d{2})$/, {
+    message: 'phone must be a valid Russian phone number',
   })
   phone: string;
 
