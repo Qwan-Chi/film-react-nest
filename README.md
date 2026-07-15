@@ -1,36 +1,39 @@
 # FILM!
 
-## Установка
+Учебный проект Яндекс Практикума: React-фронтенд и модульный API-сервис на NestJS с MongoDB.
 
-### MongoDB
+## Запуск MongoDB
 
-Установите MongoDB скачав дистрибутив с официального сайта или с помощью пакетного менеджера вашей ОС. Также можно воспользоваться Docker (см. ветку `feat/docker`.
+Создайте базу `practicum` и импортируйте исходные данные:
 
-Выполните скрипт `test/mongodb_initial_stub.js` в консоли `mongo`.
+```bash
+mongoimport --uri mongodb://127.0.0.1:27017/practicum \
+  --collection films \
+  --file backend/test/mongodb_initial_stub.json \
+  --jsonArray
+```
 
-### Бэкенд
+## Запуск backend
 
-Перейдите в папку с исходным кодом бэкенда
+```bash
+cd backend
+npm ci
+cp .env.example .env
+npm run start:dev
+```
 
-`cd backend`
+Сервис доступен на `http://localhost:3000`:
 
-Установите зависимости (точно такие же, как в package-lock.json) помощью команд
+- `GET /api/afisha/films` — список фильмов;
+- `GET /api/afisha/films/:id/schedule` — расписание фильма;
+- `POST /api/afisha/order` — бронирование билетов;
+- `GET /content/afisha/:file` — изображения афиши.
 
-`npm ci` или `yarn install --frozen-lockfile`
+## Проверка
 
-Создайте `.env` файл из примера `.env.example`, в нём укажите:
-
-* `DATABASE_DRIVER` - тип драйвера СУБД - в нашем случае это `mongodb` 
-* `DATABASE_URL` - адрес СУБД MongoDB, например `mongodb://127.0.0.1:27017/practicum`.  
-
-MongoDB должна быть установлена и запущена.
-
-Запустите бэкенд:
-
-`npm start:debug`
-
-Для проверки отправьте тестовый запрос с помощью Postman или `curl`.
-
-
-
-
+```bash
+cd backend
+npm run lint
+npm test -- --runInBand
+npm run build
+```
