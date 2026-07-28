@@ -1,16 +1,18 @@
 # FILM!
 
-Учебный проект Яндекс Практикума: React-фронтенд и модульный API-сервис на NestJS с MongoDB.
+Учебный проект Яндекс Практикума: React-фронтенд и модульный API-сервис на
+NestJS, TypeORM и PostgreSQL.
 
-## Запуск MongoDB
+## Подготовка PostgreSQL
 
-Создайте базу `practicum` и импортируйте исходные данные:
+Создайте пользователя `prac` и базу `films`, затем выполните SQL-файлы:
 
 ```bash
-mongoimport --uri mongodb://127.0.0.1:27017/practicum \
-  --collection films \
-  --file backend/test/mongodb_initial_stub.json \
-  --jsonArray
+psql -d postgres -c "CREATE ROLE prac WITH LOGIN PASSWORD 'prac'"
+psql -d postgres -c "CREATE DATABASE films OWNER prac"
+psql -U prac -d films -f backend/test/prac.init.sql
+psql -U prac -d films -f backend/test/prac.films.sql
+psql -U prac -d films -f backend/test/prac.shedules.sql
 ```
 
 ## Запуск backend

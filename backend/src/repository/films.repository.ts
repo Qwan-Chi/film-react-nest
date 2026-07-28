@@ -1,67 +1,90 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 
-import { Film, FilmDocument, Schedule } from '../films/schemas/film.schema';
+import { Film } from '../films/entities/film.entity';
+import { Schedule } from '../films/entities/schedule.entity';
+
+export abstract class FilmsRepository {
+  abstract findAll(): Promise<Film[]>;
+  abstract findSchedule(filmId: string): Promise<Schedule[] | null>;
+  abstract findSession(
+    filmId: string,
+    sessionId: string,
+  ): Promise<Schedule | null>;
+  abstract reserveSeats(
+    filmId: string,
+    sessionId: string,
+    places: string[],
+  ): Promise<boolean>;
+}
 
 @Injectable()
-export class FilmsRepository {
+export class AppRepository implements FilmsRepository {
   constructor(
-    @InjectModel(Film.name)
-    private readonly filmModel: Model<FilmDocument>,
+    @InjectRepository(Film)
+    private readonly filmRepository: Repository<Film>,
+    @InjectRepository(Schedule)
+    private readonly scheduleRepository: Repository<Schedule>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(): Promise<Film[]> {
-    return this.filmModel.find().select('-schedule -_id').lean<Film[]>().exec();
+  findAll(): Promise<Film[]> {
+    return this.filmRepository.find();
   }
 
   async findSchedule(filmId: string): Promise<Schedule[] | null> {
-    const film = await this.filmModel
-      .findOne({ id: filmId })
-      .select('schedule -_id')
-      .lean<{ schedule: Schedule[] }>()
-      .exec();
+    const filmExists = await this.filmRepository.existsBy({ id: filmId });
 
-    return film?.schedule ?? null;
+    if (!filmExists) {
+      return null;
+    }
+
+    return this.scheduleRepository.find({
+      where: { filmId },
+      select: {
+        id: true,
+        daytime: true,
+        hall: true,
+        rows: true,
+        seats: true,
+        price: true,
+        taken: true,
+      },
+      order: { daytime: 'ASC', hall: 'ASC' },
+    });
   }
 
-  async findSession(
-    filmId: string,
-    sessionId: string,
-  ): Promise<Schedule | null> {
-    const film = await this.filmModel
-      .findOne({ id: filmId, 'schedule.id': sessionId })
-      .select('schedule.$ -_id')
-      .lean<{ schedule: Schedule[] }>()
-      .exec();
-
-    return film?.schedule[0] ?? null;
+  findSession(filmId: string, sessionId: string): Promise<Schedule | null> {
+    return this.scheduleRepository.findOneBy({
+      id: sessionId,
+      filmId,
+    });
   }
 
-  async reserveSeats(
+  reserveSeats(
     filmId: string,
     sessionId: string,
     places: string[],
   ): Promise<boolean> {
-    const result = await this.filmModel
-      .updateOne(
-        {
-          id: filmId,
-          schedule: {
-            $elemMatch: {
-              id: sessionId,
-              taken: { $nin: places },
-            },
-          },
-        },
-        {
-          $addToSet: {
-            'schedule.$.taken': { $each: places },
-          },
-        },
-      )
-      .exec();
+    return this.dataSource.transaction(async (entityManager) => {
+      const repository = entityManager.getRepository(Schedule);
+      const schedule = await repository
+        .createQueryBuilder('schedule')
+        .setLock('pessimistic_write')
+        .where('schedule.id = :sessionId', { sessionId })
+        .andWhere('schedule.filmId = :filmId', { filmId })
+        .getOne();
 
-    return result.modifiedCount === 1;
+      if (!schedule || places.some((place) => schedule.taken.includes(place))) {
+        return false;
+      }
+
+      schedule.taken = [...new Set([...schedule.taken, ...places])];
+      await repository.save(schedule);
+
+      return true;
+    });
   }
 }
