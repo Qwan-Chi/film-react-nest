@@ -57,6 +57,12 @@ jobs:
         psql -h localhost -U prac -d films -f backend/test/prac.schedules.sql
     - name: Start project
       working-directory: backend
+      env:
+        DATABASE_DRIVER: postgres
+        DATABASE_URL: postgres://prac:prac@localhost:5432/films
+        DATABASE_USERNAME: prac
+        DATABASE_PASSWORD: prac
+        PORT: 3000
       run: |
         cp .env.example .env
         npm ci
