@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'node:path';
 
@@ -14,14 +14,30 @@ import { OrderModule } from './order/order.module';
       isGlobal: true,
       cache: true,
     }),
-    MongooseModule.forRootAsync({
+    TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>(
-          'DATABASE_URL',
-          'mongodb://127.0.0.1:27017/practicum',
-        ),
-      }),
+      useFactory: (configService: ConfigService) => {
+        const driver = configService.get<string>('DATABASE_DRIVER', 'postgres');
+
+        if (driver !== 'postgres') {
+          throw new Error(`Unsupported database driver: ${driver}`);
+        }
+
+        const username = configService.get<string>('DATABASE_USERNAME');
+        const password = configService.get<string>('DATABASE_PASSWORD');
+
+        return {
+          type: 'postgres' as const,
+          url: configService.get<string>(
+            'DATABASE_URL',
+            'postgres://localhost:5432/films',
+          ),
+          ...(username ? { username } : {}),
+          ...(password ? { password } : {}),
+          autoLoadEntities: true,
+          synchronize: false,
+        };
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
