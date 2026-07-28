@@ -25,6 +25,20 @@ jobs:
       run: bash $DIR_TESTS/bin/backend.sh
   test_endpoints:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: films
+          POSTGRES_USER: prac
+          POSTGRES_PASSWORD: prac
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prac -d films"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
     - name: Set up GitHub Actions
       uses: actions/checkout@v4
@@ -34,7 +48,27 @@ jobs:
         node-version: 18.x
     - name: Get testing lib
       run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
+    - name: Prepare PostgreSQL
+      env:
+        PGPASSWORD: prac
+      run: |
+        psql -h localhost -U prac -d films -f backend/test/prac.init.sql
+        psql -h localhost -U prac -d films -f backend/test/prac.films.sql
+        psql -h localhost -U prac -d films -f backend/test/prac.schedules.sql
     - name: Start project
-      run: bash $DIR_TESTS/bin/start_project.sh
+      working-directory: backend
+      run: |
+        cp .env.example .env
+        npm ci
+        npm run build
+        nohup npm run start:prod > /tmp/film-backend.log 2>&1 &
+        for attempt in {1..30}; do
+          if curl --silent --fail http://localhost:3000/api/afisha/films/ > /dev/null; then
+            exit 0
+          fi
+          sleep 2
+        done
+        cat /tmp/film-backend.log
+        exit 1
     - name: Run tests
       run: bash $DIR_TESTS/bin/endpoints.sh
