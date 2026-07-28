@@ -1,0 +1,66 @@
+services:
+  database:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/test/prac.init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ./backend/test/prac.films.sql:/docker-entrypoint-initdb.d/20-films.sql:ro
+      - ./backend/test/prac.schedules.sql:/docker-entrypoint-initdb.d/30-schedules.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - film-network
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/film-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+      DATABASE_USERNAME: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - film-network
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/film-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - frontend_dist:/frontend
+    networks:
+      - film-network
+
+  nginx:
+    image: ghcr.io/${GHCR_OWNER}/film-nginx:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    volumes:
+      - frontend_dist:/usr/share/nginx/html:ro
+    networks:
+      - film-network
+
+volumes:
+  postgres_data:
+  frontend_dist:
+
+networks:
+  film-network:
+    driver: bridge
