@@ -1,7 +1,9 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci \
+    && npm install --no-save \
+      @rollup/rollup-linux-x64-musl@$(node -p "require('./node_modules/rollup/package.json').version")
 COPY tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts index.html ./
 COPY public ./public
 COPY src ./src
