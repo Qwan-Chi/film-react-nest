@@ -6,11 +6,19 @@ import { TskvLogger } from './tskv.logger';
 
 export function createLogger(format: string): LoggerService {
   switch (format.toLowerCase()) {
+    case 'dev':
+      return new DevLogger();
     case 'json':
       return new JsonLogger();
     case 'tskv':
       return new TskvLogger();
-    default:
-      return new DevLogger();
+    default: {
+      const logger = new DevLogger();
+      logger.warn(
+        `Unknown LOGGER_FORMAT "${format}". Falling back to "dev".`,
+        'LoggerFactory',
+      );
+      return logger;
+    }
   }
 }
